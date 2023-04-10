@@ -5,8 +5,8 @@ go 1.20
 require (
 	github.com/daixiang0/gci v0.8.1
 	golang.org/x/tools v0.2.0
-	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0
-	google.golang.org/protobuf v1.27.1
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
+	google.golang.org/protobuf v1.28.1
 	gotest.tools/gotestsum v1.8.2
 	mvdan.cc/gofumpt v0.4.0
 )
