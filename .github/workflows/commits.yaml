@@ -1,0 +1,63 @@
+---
+name: Commits
+
+"on":
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  commit-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install conventional-commit linter
+        run: |
+          npm install @commitlint/config-conventional @commitlint/cli
+
+      - name: Check for Dependabot
+        run: |
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
+          DEPENDABOTS=$(
+            git log \
+              --oneline \
+              --author="dependabot\[bot\]*" \
+              --ancestry-path \
+              "${BASE}..${HEAD}" |
+            wc -l
+          )
+
+          echo "DEPENDABOTS=${DEPENDABOTS}" >> $GITHUB_ENV
+
+      - if: ${{ env.DEPENDABOTS > 0 }}
+        name: Set Dependabot Config
+        run: echo 'COMMITLINT_RC=.commitlintrc.dependabot.js' >> $GITHUB_ENV
+
+      - if: ${{ env.DEPENDABOTS < 1 }}
+        name: Set Config
+        run: echo 'COMMITLINT_RC=.commitlintrc.js' >> $GITHUB_ENV
+
+      - name: Conventional commit check
+        run: |
+          npx commitlint \
+            --config '${{ env.COMMITLINT_RC }}' \
+            --from ${{ github.event.pull_request.base.sha }} \
+            --to ${{ github.event.pull_request.head.sha }}
+
+      - name: No merge commits
+        run: |
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
+          MERGE=$(git log --merges --ancestry-path "${BASE}..${HEAD}")
+          # The merge list should be empty
+          [[ -n "${MERGE}" ]] && {
+            echo "PR contains merge commits:";
+            echo "${MERGE}";
+            exit 1;
+          }
+          exit 0;

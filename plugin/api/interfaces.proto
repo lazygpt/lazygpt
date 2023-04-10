@@ -1,0 +1,32 @@
+//
+
+syntax = "proto3";
+
+package api;
+
+option go_package = "github.com/lazygpt/lazygpt/plugin/api";
+
+service Completion {
+  rpc Complete (CompletionRequest) returns (CompletionResponse) {}
+}
+
+message Message {
+  string role = 1;
+  string content = 2;
+}
+
+message CompletionRequest {
+  repeated Message messages = 1;
+}
+
+message CompletionResponse {
+  Message message = 1;
+  Reason reason = 2;
+}
+
+enum Reason {
+  UNKNOWN = 0;
+  STOP = 1;
+  LENGTH = 2;
+  FILTER = 3;
+}
