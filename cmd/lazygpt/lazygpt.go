@@ -11,4 +11,3 @@ func main() {
 	lazyGPT.InitConfig()
 	lazyGPT.Execute()
 }
-

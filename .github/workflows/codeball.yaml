@@ -12,10 +12,6 @@ jobs:
   codeball_job:
     runs-on: ubuntu-latest
     name: Codeball
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: write
 
     steps:
       - name: Codeball

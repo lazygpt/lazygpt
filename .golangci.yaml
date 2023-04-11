@@ -1,0 +1,70 @@
+---
+run:
+  timeout: 5m
+
+linters:
+  enable-all: true
+  disable:
+    - deadcode
+    - exhaustivestruct
+    - exhaustruct
+    - ifshort
+    - interfacer
+    - golint
+    - maligned
+    - nosnakecase
+    - scopelint
+    - structcheck
+    - varcheck
+
+linters-settings:
+  funlen:
+    lines: 100
+    statements: 50
+
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/lazygpt/lazygpt)
+
+  goimports:
+    # put imports beginning with prefix after 3rd-party packages;
+    # it's a comma-separated list of prefixes
+    local-prefixes: github.com/lazygpt/lazygpt
+
+  tagliatelle:
+    case:
+      rules:
+        json: snake
+
+  wrapcheck:
+    ignoreSigs:
+      - .Errorf(
+      - errors.New(
+      - errors.Unwrap(
+      - errors.Join(
+      - .Wrap(
+      - .Wrapf(
+      - .WithMessage(
+      - .WithMessagef(
+      - .WithStack(
+      - .LogWrap(
+
+  varnamelen:
+    ignore-names:
+      - ok
+
+issues:
+  exclude-rules:
+    # Exclude lll issues for long lines with go:generate
+    - linters:
+        - lll
+      source: "^//go:generate "
+    - linters:
+        - dupl
+        - goerr113
+      path: _test\.go
+
+  max-issues-per-linter: 0
+  max-same-issues: 0

@@ -6,8 +6,18 @@ package api;
 
 option go_package = "github.com/lazygpt/lazygpt/plugin/api";
 
+service Interfaces {
+  rpc Interfaces (InterfacesRequest) returns (InterfacesResponse) {}
+}
+
 service Completion {
   rpc Complete (CompletionRequest) returns (CompletionResponse) {}
+}
+
+message InterfacesRequest {}
+
+message InterfacesResponse {
+  repeated string interfaces = 1;
 }
 
 message Message {

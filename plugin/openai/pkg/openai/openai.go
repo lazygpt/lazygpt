@@ -4,6 +4,7 @@ package openai
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/sashabaranov/go-openai"
@@ -11,23 +12,27 @@ import (
 	"github.com/lazygpt/lazygpt/plugin/api"
 )
 
-type OpenAIPlugin struct {
+// ErrNoCompletions is returned when no completions are returned from the OpenAI API.
+var ErrNoCompletions = errors.New("no completions returned")
+
+type Plugin struct {
 	Client *openai.Client
 }
 
 var (
-	_ api.Completion = (*OpenAIPlugin)(nil)
+	_ api.Completion = (*Plugin)(nil)
+	_ api.Interfaces = (*Plugin)(nil)
 )
 
-// NewOpenAIPlugin creates a new OpenAIPlugin instance
-func NewOpenAIPlugin(key string) *OpenAIPlugin {
-	return &OpenAIPlugin{
+// NewPlugin creates a new Plugin instance.
+func NewPlugin(key string) *Plugin {
+	return &Plugin{
 		Client: openai.NewClient(key),
 	}
 }
 
-// Complete implements the CompletionServer interface.
-func (plugin *OpenAIPlugin) Complete(
+// Complete implements the `Completion` interface.
+func (plugin *Plugin) Complete(
 	ctx context.Context,
 	messages []api.Message,
 ) (*api.Message, api.Reason, error) {
@@ -40,9 +45,9 @@ func (plugin *OpenAIPlugin) Complete(
 	}
 
 	req := openai.ChatCompletionRequest{
-		Model: openai.GPT3Dot5Turbo,
+		Model:    openai.GPT3Dot5Turbo,
 		Messages: msgs,
-		N: 1,
+		N:        1,
 	}
 
 	resp, err := plugin.Client.CreateChatCompletion(ctx, req)
@@ -51,7 +56,7 @@ func (plugin *OpenAIPlugin) Complete(
 	}
 
 	if len(resp.Choices) == 0 {
-		return nil, api.Reason_UNKNOWN, fmt.Errorf("no completions returned")
+		return nil, api.Reason_UNKNOWN, ErrNoCompletions
 	}
 
 	response := &api.Message{
@@ -60,4 +65,12 @@ func (plugin *OpenAIPlugin) Complete(
 	}
 
 	return response, api.StringToReason(resp.Choices[0].FinishReason), nil
+}
+
+// Interfaces implements the `api.Interfaces` interface.
+func (plugin *Plugin) Interfaces(_ context.Context) ([]string, error) {
+	return []string{
+		"completion",
+		"interfaces",
+	}, nil
 }
