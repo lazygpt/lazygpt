@@ -28,3 +28,10 @@ updates:
       interval: weekly
     commit-message:
       prefix: chore(go)
+
+  - package-ecosystem: gomod
+    directory: /plugin/openai
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore(go)
