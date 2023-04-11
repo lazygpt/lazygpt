@@ -11,6 +11,14 @@ import (
 	"google.golang.org/grpc"
 )
 
+// NewMessage returns a new Message.
+func NewMessage(role string, content string) Message {
+	return Message{
+		Role:    role,
+		Content: content,
+	}
+}
+
 // Completion is the interface that plugins must implement to provide
 // completion suggestions.
 type Completion interface {
@@ -27,7 +35,7 @@ type CompletionPlugin struct {
 }
 
 var (
-	_ plugin.Plugin = (*CompletionPlugin)(nil)
+	_ plugin.Plugin     = (*CompletionPlugin)(nil)
 	_ plugin.GRPCPlugin = (*CompletionPlugin)(nil)
 )
 
@@ -49,15 +57,16 @@ func (plugin *CompletionPlugin) Client(_ *plugin.MuxBroker, _ *rpc.Client) (inte
 }
 
 // GRPCServer registers the completion plugin with the gRPC server.
-func (plugin *CompletionPlugin) GRPCServer(broker *plugin.GRPCBroker, srv *grpc.Server) error {
+func (plugin *CompletionPlugin) GRPCServer(_ *plugin.GRPCBroker, srv *grpc.Server) error {
 	RegisterCompletionServer(srv, NewCompletionGRPCServer(plugin.Completion))
+
 	return nil
 }
 
 // GRPCClient returns the completion plugin client.
 func (plugin *CompletionPlugin) GRPCClient(
-	ctx context.Context,
-	broker *plugin.GRPCBroker,
+	_ context.Context,
+	_ *plugin.GRPCBroker,
 	client *grpc.ClientConn,
 ) (interface{}, error) {
 	return NewCompletionGRPCClient(NewCompletionClient(client)), nil
@@ -69,6 +78,8 @@ type CompletionGRPCServer struct {
 
 	Impl Completion
 }
+
+var _ CompletionServer = (*CompletionGRPCServer)(nil)
 
 // NewCompletionGRPCServer returns a new CompletionGRPCServer.
 func NewCompletionGRPCServer(impl Completion) *CompletionGRPCServer {

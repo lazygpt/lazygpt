@@ -13,8 +13,7 @@ func InitServeCmd(app *LazyGPTApp) {
 		Use:   "serve",
 		Short: "Start an HTTP server to serve the LazyGPT web UI",
 		Run: func(cmd *cobra.Command, args []string) {
-			// TODO: Implement the HTTP server functionality
-			fmt.Println("Starting HTTP server...")
+			fmt.Println("Starting HTTP server...") //nolint:forbidigo
 		},
 	}
 

@@ -1,5 +1,6 @@
 //
 
+//nolint:forbidigo
 package app
 
 import (
@@ -49,7 +50,7 @@ func (app *LazyGPTApp) Execute() {
 	cmd, _, err := app.RootCmd.Find(args)
 
 	// NOTE(jkoelker) Default to chat if no command is specified.
-	if err == nil && cmd.Use == app.RootCmd.Use && cmd.Flags().Parse(args) != pflag.ErrHelp {
+	if err == nil && cmd.Use == app.RootCmd.Use && !errors.Is(cmd.Flags().Parse(args), pflag.ErrHelp) {
 		app.RootCmd.SetArgs(append([]string{"chat"}, args...))
 	}
 
@@ -77,9 +78,7 @@ func (app *LazyGPTApp) InitConfig() {
 
 	if err := viper.ReadInConfig(); err != nil {
 		var cmp viper.ConfigFileNotFoundError
-		if errors.As(err, &cmp) {
-			fmt.Println("No config file found, running with default settings")
-		} else {
+		if !errors.As(err, &cmp) {
 			fmt.Printf("%T\n", err)
 			fmt.Println("Can't read config:", err)
 			os.Exit(1)

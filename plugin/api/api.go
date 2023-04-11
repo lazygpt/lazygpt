@@ -12,8 +12,8 @@ const (
 	VersionMajor = 1
 	VersionMinor = 0
 
-	ProtocolVersion = VersionMajor
-	MagicCookieKey = "LAZYGPT_PLUGIN_MAGIC_COOKIE"
+	ProtocolVersion  = VersionMajor
+	MagicCookieKey   = "LAZYGPT_PLUGIN_MAGIC_COOKIE"
 	MagicCookieValue = "678363c73a70838a84ea7f90a1c7bdfc6e80e8560e50ea75e0a6ca906d00c881"
 )
 
@@ -27,14 +27,21 @@ func HandshakeConfig() plugin.HandshakeConfig {
 	}
 }
 
+func Plugins() map[string]plugin.Plugin {
+	return map[string]plugin.Plugin{
+		"completion": &CompletionPlugin{},
+		"interfaces": &InterfacesPlugin{},
+	}
+}
+
 func StringToReason(reason string) Reason {
 	val, ok := Reason_value[reason]
 	if !ok {
 		return Reason_UNKNOWN
 	}
+
 	return Reason(val)
 }
-
 
 // Version returns the string representation of the protocol version.
 func Version() string {
