@@ -7,7 +7,5 @@ import (
 )
 
 func main() {
-	lazyGPT := app.NewLazyGPTApp()
-	lazyGPT.InitConfig()
-	lazyGPT.Execute()
+	app.NewLazyGPTApp().Execute()
 }

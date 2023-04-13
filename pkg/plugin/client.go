@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 
 	"github.com/lazygpt/lazygpt/plugin/api"
+	"github.com/lazygpt/lazygpt/plugin/log"
 )
 
 // ErrUnsupportedPluginInterface is returned when an interface is requested
@@ -18,7 +19,7 @@ var ErrUnsupportedPluginInterface = fmt.Errorf("unsupported plugin interface")
 
 // Factory is a factory for creating plugin clients for the interfaces
 // requested.
-func Factory(_ context.Context, path string, interfaces []string) (*plugin.Client, error) {
+func Factory(ctx context.Context, path string, interfaces []string) (*plugin.Client, error) {
 	plugins := make(plugin.PluginSet)
 	supported := api.Plugins()
 
@@ -30,6 +31,8 @@ func Factory(_ context.Context, path string, interfaces []string) (*plugin.Clien
 		plugins[iface] = supported[iface]
 	}
 
+	logger := log.FromContext(ctx).Named("plugin")
+
 	config := &plugin.ClientConfig{
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 		AutoMTLS:         true,
@@ -37,6 +40,7 @@ func Factory(_ context.Context, path string, interfaces []string) (*plugin.Clien
 		HandshakeConfig:  api.HandshakeConfig(),
 		Managed:          true,
 		Plugins:          plugins,
+		Logger:           logger,
 	}
 
 	return plugin.NewClient(config), nil

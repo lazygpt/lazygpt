@@ -10,6 +10,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 
 	"github.com/lazygpt/lazygpt/plugin/api"
+	"github.com/lazygpt/lazygpt/plugin/log"
 )
 
 // ErrNoCompletions is returned when no completions are returned from the OpenAI API.
@@ -63,6 +64,13 @@ func (plugin *Plugin) Complete(
 		Role:    resp.Choices[0].Message.Role,
 		Content: resp.Choices[0].Message.Content,
 	}
+
+	log.Info(
+		ctx, "OpenAI response",
+		"content", response.Content,
+		"role", response.Role,
+		"reason", resp.Choices[0].FinishReason,
+	)
 
 	return response, api.StringToReason(resp.Choices[0].FinishReason), nil
 }
