@@ -101,6 +101,8 @@ func (s *CompletionGRPCServer) Complete(
 		}
 	}
 
+	ctx = InitLogging(ctx, "completion")
+
 	msg, reason, err := s.Impl.Complete(ctx, msgs)
 	if err != nil {
 		return nil, fmt.Errorf("completion failed: %w", err)

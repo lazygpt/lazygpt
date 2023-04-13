@@ -85,6 +85,8 @@ func (s *InterfacesGRPCServer) Interfaces(
 	ctx context.Context,
 	_ *InterfacesRequest,
 ) (*InterfacesResponse, error) {
+	ctx = InitLogging(ctx, "interfaces")
+
 	interfaces, err := s.Impl.Interfaces(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("interfaces failed: %w", err)

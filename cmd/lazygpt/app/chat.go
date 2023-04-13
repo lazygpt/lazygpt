@@ -1,6 +1,5 @@
 //
 
-//nolint:forbidigo
 package app
 
 import (
@@ -13,6 +12,7 @@ import (
 
 	"github.com/lazygpt/lazygpt/pkg/plugin"
 	"github.com/lazygpt/lazygpt/plugin/api"
+	"github.com/lazygpt/lazygpt/plugin/log"
 )
 
 func InitChatCmd(app *LazyGPTApp) {
@@ -23,7 +23,9 @@ func InitChatCmd(app *LazyGPTApp) {
 			manager := plugin.NewManager()
 			defer manager.Close()
 
-			client, err := manager.Client(cmd.Context(), "openai")
+			ctx := cmd.Context()
+
+			client, err := manager.Client(ctx, "openai")
 			if err != nil {
 				return fmt.Errorf("failed to get client: %w", err)
 			}
@@ -63,20 +65,16 @@ func InitChatCmd(app *LazyGPTApp) {
 					Content: input,
 				})
 
-				response, reason, err := completion.Complete(cmd.Context(), messages)
-				if err != nil {
-					fmt.Printf("Error: %s\n", err)
+				response, reason, err := completion.Complete(ctx, messages)
+				if err != nil || response == nil {
+					log.Error(
+						ctx, "failed to complete", err,
+						"response", response,
+						"reason", reason,
+					)
 
 					return
 				}
-
-				if response == nil {
-					fmt.Printf("Reason: %s\n", reason)
-
-					return
-				}
-				fmt.Printf("Reason: %s\n", reason)
-				fmt.Printf("Response: %s\n", response)
 
 				messages = append(messages, api.Message{
 					Role:    response.Role,

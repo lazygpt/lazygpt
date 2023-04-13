@@ -1,17 +1,18 @@
 //
 
-//nolint:forbidigo
 package app
 
 import (
+	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+
+	"github.com/lazygpt/lazygpt/plugin/log"
 )
 
 type LazyGPTApp struct {
@@ -46,6 +47,10 @@ server and serve a web UI.`,
 }
 
 func (app *LazyGPTApp) Execute() {
+	app.InitConfig()
+
+	ctx := log.NewContext(context.Background(), log.NewLogger("lazygpt"))
+
 	args := os.Args[1:]
 	cmd, _, err := app.RootCmd.Find(args)
 
@@ -54,19 +59,21 @@ func (app *LazyGPTApp) Execute() {
 		app.RootCmd.SetArgs(append([]string{"chat"}, args...))
 	}
 
-	if err := app.RootCmd.Execute(); err != nil {
-		fmt.Println(err)
+	if err := app.RootCmd.ExecuteContext(ctx); err != nil {
+		log.Error(ctx, "Error executing command", err)
 		os.Exit(1)
 	}
 }
 
 func (app *LazyGPTApp) InitConfig() {
+	ctx := log.NewContext(context.Background(), log.NewLogger("bootstrap"))
+
 	if app.ConfigFile != "" {
 		viper.SetConfigFile(app.ConfigFile)
 	} else {
 		configDir, err := os.UserConfigDir()
 		if err != nil {
-			fmt.Println(err)
+			log.Error(ctx, "Can't get user config directory", err)
 			os.Exit(1)
 		}
 
@@ -79,8 +86,7 @@ func (app *LazyGPTApp) InitConfig() {
 	if err := viper.ReadInConfig(); err != nil {
 		var cmp viper.ConfigFileNotFoundError
 		if !errors.As(err, &cmp) {
-			fmt.Printf("%T\n", err)
-			fmt.Println("Can't read config:", err)
+			log.Error(ctx, "Can't read config", err)
 			os.Exit(1)
 		}
 	}

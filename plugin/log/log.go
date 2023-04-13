@@ -50,9 +50,8 @@ func Warn(ctx context.Context, msg string, keyvals ...any) {
 }
 
 // Error is a convenience method for logging at the Error level to the logger
-// in the context. If an odd number of keyvals are provided, the last one is
-// and the first one is an `error` type, the is added to the keyvals as
-// `error`.
+// in the context. If an odd number of keyvals are provided, and the first one
+// is an `error` type, the is added to the keyvals as `error`.
 func Error(ctx context.Context, msg string, keyvals ...any) {
 	if len(keyvals)%2 == 1 {
 		if err, ok := keyvals[0].(error); ok {
