@@ -13,8 +13,13 @@ import (
 	"github.com/lazygpt/lazygpt/plugin/log"
 )
 
-// ErrNoCompletions is returned when no completions are returned from the OpenAI API.
-var ErrNoCompletions = errors.New("no completions returned")
+var (
+	// ErrNoCompletions is returned when no completions are returned from the OpenAI API.
+	ErrNoCompletions = errors.New("no completions returned")
+
+	// ErrNoEmbeddings is returned when no embeddings are returned from the OpenAI API.
+	ErrNoEmbeddings = errors.New("no embeddings returned")
+)
 
 type Plugin struct {
 	Client *openai.Client
@@ -22,6 +27,7 @@ type Plugin struct {
 
 var (
 	_ api.Completion = (*Plugin)(nil)
+	_ api.Embedding  = (*Plugin)(nil)
 	_ api.Interfaces = (*Plugin)(nil)
 )
 
@@ -75,10 +81,30 @@ func (plugin *Plugin) Complete(
 	return response, api.StringToReason(resp.Choices[0].FinishReason), nil
 }
 
+// Embedding implements the `api.Embedding` interface.
+func (plugin *Plugin) Embedding(ctx context.Context, input string) ([]float32, error) {
+	req := openai.EmbeddingRequest{
+		Model: openai.AdaEmbeddingV2,
+		Input: []string{input},
+	}
+
+	resp, err := plugin.Client.CreateEmbeddings(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create embedding: %w", err)
+	}
+
+	if len(resp.Data) == 0 {
+		return nil, ErrNoEmbeddings
+	}
+
+	return resp.Data[0].Embedding, nil
+}
+
 // Interfaces implements the `api.Interfaces` interface.
 func (plugin *Plugin) Interfaces(_ context.Context) ([]string, error) {
 	return []string{
 		"completion",
+		"embedding",
 		"interfaces",
 	}, nil
 }

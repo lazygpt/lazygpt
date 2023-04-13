@@ -29,6 +29,7 @@ func main() {
 
 		Plugins: plugin.PluginSet{
 			"completion": api.NewCompletionPlugin(openaiPlugin),
+			"embedding":  api.NewEmbeddingPlugin(openaiPlugin),
 			"interfaces": api.NewInterfacesPlugin(openaiPlugin),
 		},
 	}

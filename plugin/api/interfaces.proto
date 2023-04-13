@@ -14,6 +14,10 @@ service Completion {
   rpc Complete (CompletionRequest) returns (CompletionResponse) {}
 }
 
+service Embedding {
+  rpc Embedding (EmbeddingRequest) returns (EmbeddingResponse) {}
+}
+
 message InterfacesRequest {}
 
 message InterfacesResponse {
@@ -39,4 +43,12 @@ enum Reason {
   STOP = 1;
   LENGTH = 2;
   FILTER = 3;
+}
+
+message EmbeddingRequest {
+  string input = 1;
+}
+
+message EmbeddingResponse {
+  repeated float embedding = 1;
 }
