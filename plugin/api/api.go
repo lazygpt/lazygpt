@@ -4,6 +4,7 @@ package api
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/go-plugin"
 )
@@ -30,12 +31,13 @@ func HandshakeConfig() plugin.HandshakeConfig {
 func Plugins() map[string]plugin.Plugin {
 	return map[string]plugin.Plugin{
 		"completion": &CompletionPlugin{},
+		"embedding":  &EmbeddingPlugin{},
 		"interfaces": &InterfacesPlugin{},
 	}
 }
 
 func StringToReason(reason string) Reason {
-	val, ok := Reason_value[reason]
+	val, ok := Reason_value[strings.ToUpper(reason)]
 	if !ok {
 		return Reason_UNKNOWN
 	}
