@@ -5,9 +5,7 @@ package api
 import (
 	"context"
 	"fmt"
-	"net/rpc"
 
-	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 )
 
@@ -26,50 +24,16 @@ type Completion interface {
 	Complete(ctx context.Context, messages []Message) (*Message, Reason, error)
 }
 
-// CompletionPlugin is the implementation of the plugin for the completion
-// plugin.
-type CompletionPlugin struct {
-	plugin.Plugin
-
-	Completion Completion
-}
-
-var (
-	_ plugin.Plugin     = (*CompletionPlugin)(nil)
-	_ plugin.GRPCPlugin = (*CompletionPlugin)(nil)
-)
-
 // NewCompletionPlugin returns a new CompletionPlugin.
-func NewCompletionPlugin(completion Completion) *CompletionPlugin {
-	return &CompletionPlugin{
-		Completion: completion,
-	}
-}
-
-// Server always returns an error, we only support GRPC.
-func (plugin *CompletionPlugin) Server(_ *plugin.MuxBroker) (interface{}, error) {
-	return nil, ErrNotGRPC
-}
-
-// Client always returns an error, we only support GRPC.
-func (plugin *CompletionPlugin) Client(_ *plugin.MuxBroker, _ *rpc.Client) (interface{}, error) {
-	return nil, ErrNotGRPC
-}
-
-// GRPCServer registers the completion plugin with the gRPC server.
-func (plugin *CompletionPlugin) GRPCServer(_ *plugin.GRPCBroker, srv *grpc.Server) error {
-	RegisterCompletionServer(srv, NewCompletionGRPCServer(plugin.Completion))
-
-	return nil
-}
-
-// GRPCClient returns the completion plugin client.
-func (plugin *CompletionPlugin) GRPCClient(
-	_ context.Context,
-	_ *plugin.GRPCBroker,
-	client *grpc.ClientConn,
-) (interface{}, error) {
-	return NewCompletionGRPCClient(NewCompletionClient(client)), nil
+func NewCompletionPlugin(completion Completion) *Plugin {
+	return NewPlugin(
+		func(srv *grpc.Server) {
+			RegisterCompletionServer(srv, NewCompletionGRPCServer(completion))
+		},
+		func(conn *grpc.ClientConn) (interface{}, error) {
+			return NewCompletionGRPCClient(NewCompletionClient(conn)), nil
+		},
+	)
 }
 
 // CompletionGRPCServer is the gRPC server implementation of the plugin.

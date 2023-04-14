@@ -30,9 +30,9 @@ func HandshakeConfig() plugin.HandshakeConfig {
 
 func Plugins() map[string]plugin.Plugin {
 	return map[string]plugin.Plugin{
-		"completion": &CompletionPlugin{},
-		"embedding":  &EmbeddingPlugin{},
-		"interfaces": &InterfacesPlugin{},
+		"completion": NewCompletionPlugin(nil),
+		"embedding":  NewEmbeddingPlugin(nil),
+		"interfaces": NewInterfacesPlugin(nil),
 	}
 }
 

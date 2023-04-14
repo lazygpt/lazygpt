@@ -5,9 +5,7 @@ package api
 import (
 	"context"
 	"fmt"
-	"net/rpc"
 
-	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 )
 
@@ -18,50 +16,16 @@ type Interfaces interface {
 	Interfaces(ctx context.Context) ([]string, error)
 }
 
-// InterfacesPlugin is the implementation of the plugin for the interfaces
-// plugin.
-type InterfacesPlugin struct {
-	plugin.Plugin
-
-	Interfaces Interfaces
-}
-
-var (
-	_ plugin.Plugin     = (*InterfacesPlugin)(nil)
-	_ plugin.GRPCPlugin = (*InterfacesPlugin)(nil)
-)
-
 // NewInterfacesPlugin returns a new InterfacesPlugin.
-func NewInterfacesPlugin(interfaces Interfaces) *InterfacesPlugin {
-	return &InterfacesPlugin{
-		Interfaces: interfaces,
-	}
-}
-
-// Server always returns an error, we only support GRPC.
-func (plugin *InterfacesPlugin) Server(_ *plugin.MuxBroker) (interface{}, error) {
-	return nil, ErrNotGRPC
-}
-
-// Client always returns an error, we only support GRPC.
-func (plugin *InterfacesPlugin) Client(_ *plugin.MuxBroker, _ *rpc.Client) (interface{}, error) {
-	return nil, ErrNotGRPC
-}
-
-// GRPCServer registers the interfaces plugin with the gRPC server.
-func (plugin *InterfacesPlugin) GRPCServer(_ *plugin.GRPCBroker, srv *grpc.Server) error {
-	RegisterInterfacesServer(srv, NewInterfacesGRPCServer(plugin.Interfaces))
-
-	return nil
-}
-
-// GRPCClient returns the interfaes plugin client.
-func (plugin *InterfacesPlugin) GRPCClient(
-	_ context.Context,
-	_ *plugin.GRPCBroker,
-	client *grpc.ClientConn,
-) (interface{}, error) {
-	return NewInterfacesGRPCClient(NewInterfacesClient(client)), nil
+func NewInterfacesPlugin(interfaces Interfaces) *Plugin {
+	return NewPlugin(
+		func(srv *grpc.Server) {
+			RegisterInterfacesServer(srv, NewInterfacesGRPCServer(interfaces))
+		},
+		func(client *grpc.ClientConn) (interface{}, error) {
+			return NewInterfacesGRPCClient(NewInterfacesClient(client)), nil
+		},
+	)
 }
 
 // InterfacesGRPCServer is the gRPC server implementation of the plugin.

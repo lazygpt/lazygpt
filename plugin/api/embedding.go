@@ -5,9 +5,7 @@ package api
 import (
 	"context"
 	"fmt"
-	"net/rpc"
 
-	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 )
 
@@ -18,50 +16,16 @@ type Embedding interface {
 	Embedding(ctx context.Context, input string) ([]float32, error)
 }
 
-// EmbeddingPlugin is the implementation of the plugin for the embedding
-// plugin.
-type EmbeddingPlugin struct {
-	plugin.Plugin
-
-	Embedding Embedding
-}
-
-var (
-	_ plugin.Plugin     = (*EmbeddingPlugin)(nil)
-	_ plugin.GRPCPlugin = (*EmbeddingPlugin)(nil)
-)
-
 // NewEmbeddingPlugin returns a new EmbeddingPlugin.
-func NewEmbeddingPlugin(embedding Embedding) *EmbeddingPlugin {
-	return &EmbeddingPlugin{
-		Embedding: embedding,
-	}
-}
-
-// Server always returns an error, we only support GRPC.
-func (plugin *EmbeddingPlugin) Server(_ *plugin.MuxBroker) (interface{}, error) {
-	return nil, ErrNotGRPC
-}
-
-// Client always returns an error, we only support GRPC.
-func (plugin *EmbeddingPlugin) Client(_ *plugin.MuxBroker, _ *rpc.Client) (interface{}, error) {
-	return nil, ErrNotGRPC
-}
-
-// GRPCServer registers the embedding plugin with the gRPC server.
-func (plugin *EmbeddingPlugin) GRPCServer(_ *plugin.GRPCBroker, srv *grpc.Server) error {
-	RegisterEmbeddingServer(srv, NewEmbeddingGRPCServer(plugin.Embedding))
-
-	return nil
-}
-
-// GRPCClient returns the embedding plugin client.
-func (plugin *EmbeddingPlugin) GRPCClient(
-	_ context.Context,
-	_ *plugin.GRPCBroker,
-	client *grpc.ClientConn,
-) (interface{}, error) {
-	return NewEmbeddingGRPCClient(NewEmbeddingClient(client)), nil
+func NewEmbeddingPlugin(embedding Embedding) *Plugin {
+	return NewPlugin(
+		func(srv *grpc.Server) {
+			RegisterEmbeddingServer(srv, NewEmbeddingGRPCServer(embedding))
+		},
+		func(client *grpc.ClientConn) (interface{}, error) {
+			return NewEmbeddingGRPCClient(NewEmbeddingClient(client)), nil
+		},
+	)
 }
 
 // EmbeddingGRPCServer is the gRPC server implementation of the plugin.
