@@ -5,7 +5,7 @@
 SHELL := /bin/bash
 INTERACTIVE := $(shell [ -t 0 ] && echo 1)
 
-root_mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+root_mkfile_path := $(abspath $(firstword $(MAKEFILE_LIST)))
 export REPO_ROOT_DIR := $(realpath $(dir $(root_mkfile_path)))
 
 export PROJECT_NAME ?= lazygpt
@@ -67,7 +67,6 @@ endif
 $(DIST_DIR):
 	mkdir -p $(DIST_DIR)
 
-
 $(DIST_DIR)/lazygpt: generate.host
 $(DIST_DIR)/lazygpt: $(DIST_DIR)
 $(DIST_DIR)/lazygpt: $(shell find $(REPO_ROOT_DIR)/cmd -type f -name '*'.go)
@@ -113,11 +112,13 @@ go-cache: .cache/golangci-lint
 repo-cache: go-cache
 
 .PHONY: devkit
+devkit: #> Build the devkit environment
 devkit: $(DOCKER_DEVKIT_PHONY_FILE)
 devkit: repo-cache
 
 WHAT ?= /bin/bash
 .PHONY: devkit.run
+devkit.run: #> Run a devkit environment for hacking on the project
 devkit.run: devkit
 	docker run \
 		$(DOCKER_DEVKIT_ARGS) \
@@ -125,17 +126,21 @@ devkit.run: devkit
 		/bin/bash -c 'git config --global safe.directory /code && $(WHAT)'
 
 .PHONY: dev
+dev: #> Alias for devkit.run
 dev: devkit.run
 
 .PHONY: shell
+shell: #> Alias for devkit.run
 shell: devkit.run
 
 .PHONY: build.host
+build.host: #> Build the project on the host
 build.host: generate.host
 build.host: $(DIST_DIR)/lazygpt
 build.host: $(DIST_DIR)/lazygpt-plugin-openai
 
 .PHONY: build
+build: #> Build the project on the host, then run it in a devkit environment
 build: WHAT=make build.host
 build: devkit.run
 
@@ -156,6 +161,7 @@ lint.host: lint.host-docker
 lint.host: lint.host-go
 
 .PHONY: lint
+lint: #> Perform all linting ceremonies
 lint: WHAT=make lint.host
 lint: devkit.run
 
@@ -172,6 +178,7 @@ clean-dist:
 	rm -rf $(DIST_DIR)
 
 .PHONY: clean
+clean: #> Clean up all built artifacts
 clean: clean-plugin
 clean: clean-coverage
 clean: clean-dist
@@ -183,13 +190,16 @@ plugin/api/interfaces_grpc.pb.go: plugin/api/interfaces.proto
 	go generate plugin/api/api.go
 
 .PHONY: generate-plugin.host
+generate-plugin.host: #> Generate plugin protobuf files
 generate-plugin.host: plugin/api/interfaces.pb.go
 generate-plugin.host: plugin/api/interfaces_grpc.pb.go
 
 .PHONY: generate.host
+generate.host: #> Generate all protobuf files
 generate.host: generate-plugin.host
 
 .PHONY: generate
+generate: #> Generate protobuf files and spawn a devkit environment
 generate: WHAT=make generate.host
 generate: devkit.run
 
@@ -212,9 +222,23 @@ coverage.html:
 	go tool cover -html=coverage.out -o coverage.html
 
 .PHONY: test.host
+test.host: #> Run tests on the host
 test.host: generate.host
 test.host: coverage.html
 
 .PHONY: test
+test: #> Run tests on the host and spawn a devkit environment
 test: WHAT=make test.host
 test: devkit.run
+
+.PHONY: help
+help: #> Show this help
+help:
+	@printf "\033[1mUsage: \033[0mmake [target]\n\n"
+	@printf "\033[1m\033[33mtargets:\033[0m\n"
+	@grep -E '^[a-zA-Z_-]+:.*?#> .*' $(MAKEFILE_LIST) \
+			| sort \
+			| awk '\
+					BEGIN {FS = ":.*?#> "}; \
+					{printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2} \
+					'
