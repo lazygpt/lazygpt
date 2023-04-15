@@ -47,7 +47,7 @@ func (plugin *Plugin) Client(_ *plugin.MuxBroker, _ *rpc.Client) (interface{}, e
 	return nil, ErrNotGRPC
 }
 
-// GRPCServer registers the interfaces plugin with the gRPC server.
+// GRPCServer registers the plugin with the gRPC server.
 func (plugin *Plugin) GRPCServer(_ *plugin.GRPCBroker, srv *grpc.Server) error {
 	plugin.register(srv)
 
