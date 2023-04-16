@@ -3,6 +3,7 @@ package chat
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -13,6 +14,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/lazygpt/lazygpt/plugin/log"
+)
+
+const (
+	StrChatPlaceholder   = "Welcome to LazyGPT! Type a prompt and press Enter to send."
+	StrLogsPlaceholder   = "Logs will appear here."
+	StrPromptPlaceholder = "Type a prompt and press Enter to send."
+
+	ViewChatSizeFactor   = 0.40
+	ViewLogsSizeFactor   = 0.40
+	ViewPromptSizeFactor = 0.05
 )
 
 type errMsg error
@@ -36,6 +47,10 @@ func textRendererWithWidth(width int, otherOptions ...glamour.TermRendererOption
 	return renderer
 }
 
+func floorToInt(f float64) int {
+	return int(math.Floor(f))
+}
+
 type model struct {
 	chatViewport viewport.Model
 	logsViewport viewport.Model
@@ -46,6 +61,9 @@ type model struct {
 
 	textRenderer *glamour.TermRenderer
 
+	windowWidth  int
+	windowHeight int
+
 	logBuf *bytes.Buffer
 	err    error
 
@@ -53,28 +71,35 @@ type model struct {
 }
 
 func NewModel(pctx *promptContext) model {
-	const width = 30
+	const height = 40
+	const width = 80
 
 	promptTa := textarea.New()
-	promptTa.Placeholder = "Send a message..."
+	promptTa.Placeholder = StrPromptPlaceholder
 	promptTa.Focus()
 
 	promptTa.Prompt = "┃ "
 	promptTa.CharLimit = 280
 
-	promptTa.SetWidth(30)
-	promptTa.SetHeight(3)
+	promptTa.SetWidth(width)
+	promptTa.SetHeight(height * ViewPromptSizeFactor)
 
 	// Remove cursor line styling
 	promptTa.FocusedStyle.CursorLine = lipgloss.NewStyle()
 	promptTa.ShowLineNumbers = false
 	promptTa.KeyMap.InsertNewline.SetEnabled(false)
 
-	chatVp := viewport.New(width, 10)
-	chatVp.SetContent("Welcome to LazyGPT! Type a prompt and press Enter to send.")
+	chatVp := viewport.New(width, floorToInt(height*ViewChatSizeFactor))
+	chatVp.SetContent(StrChatPlaceholder)
+	chatVp.Style = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("5"))
 
-	logsVp := viewport.New(width, 7)
-	logsVp.SetContent("Logs will appear here.")
+	logsVp := viewport.New(width, floorToInt(height*ViewLogsSizeFactor))
+	logsVp.SetContent(StrLogsPlaceholder)
+	logsVp.Style = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("202"))
 
 	// TODO(seanj): Need to make sure this buffer can't grow unbounded
 	logBuf := bytes.NewBufferString("")
@@ -89,6 +114,9 @@ func NewModel(pctx *promptContext) model {
 		receiverStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("15")),
 
 		textRenderer: textRendererWithWidth(width),
+
+		windowWidth:  width,
+		windowHeight: height,
 
 		logBuf: logBuf,
 		err:    nil,
@@ -123,7 +151,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			promptText := m.promptText.Value()
 			m.promptText.Reset()
 			promptText = strings.TrimSpace(promptText)
-			if strings.ToLower(promptText) == "quit" || strings.ToLower(promptText) == "exit" {
+			switch strings.ToLower(promptText) {
+			case "quit":
+				fallthrough
+			case "exit":
 				return m, tea.Quit
 			}
 
@@ -132,10 +163,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
-		m.promptText.SetWidth(msg.Width)
-		m.chatViewport.Width = msg.Width
-		m.logsViewport.Width = msg.Width
+		m.windowWidth = msg.Width
+		m.windowHeight = msg.Height
+
 		m.textRenderer = textRendererWithWidth(msg.Width)
+		m.promptText.SetWidth(msg.Width)
+		m.chatViewport = m.renderChatViewport()
+		m.logsViewport = m.renderLogsViewport()
+
 		return m, nil
 
 	case tickMsg:
@@ -166,15 +201,21 @@ func (m model) View() string {
 		m.logsViewport.View(),
 		m.chatViewport.View(),
 		m.promptText.View(),
-	) + "\n\n"
+	) + "\n"
 }
 
 func (m model) renderChatViewport() viewport.Model {
 	messages := m.renderChatMessages()
-	chatViewport := viewport.New(m.chatViewport.Width, m.chatViewport.Height)
+
+	chatViewport := viewport.New(m.windowWidth, floorToInt(float64(m.windowHeight)*ViewChatSizeFactor))
+	chatViewport.Style = m.chatViewport.Style.Copy()
+
 	content, err := m.textRenderer.Render(strings.Join(messages, "\n"))
 	if err != nil {
 		content = fmt.Errorf("error rendering chat: %w", err).Error()
+	}
+	if content == "" {
+		content = StrChatPlaceholder
 	}
 	chatViewport.SetContent(content)
 	chatViewport.GotoBottom()
@@ -182,13 +223,20 @@ func (m model) renderChatViewport() viewport.Model {
 }
 
 func (m model) renderLogsViewport() viewport.Model {
-	logsViewport := viewport.New(m.logsViewport.Width, m.logsViewport.Height)
+	logsViewport := viewport.New(m.windowWidth, floorToInt(float64(m.windowHeight)*ViewLogsSizeFactor))
+	logsViewport.Style = m.logsViewport.Style.Copy()
+
 	content, err := m.textRenderer.Render(m.logBuf.String())
 	if err != nil {
 		content = fmt.Errorf("error rendering logs: %w", err).Error()
 	}
+	if content == "" {
+		content = StrLogsPlaceholder
+	}
+
 	logsViewport.SetContent(content)
 	logsViewport.GotoBottom()
+
 	return logsViewport
 }
 
