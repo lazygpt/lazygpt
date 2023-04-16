@@ -4,6 +4,8 @@ package log
 
 import (
 	"context"
+	"io"
+	"os"
 
 	"github.com/hashicorp/go-hclog"
 )
@@ -11,18 +13,27 @@ import (
 // Logger is a wrapper around hclog.Logger to make it concrete.
 type Logger struct {
 	hclog.Logger
+
+	output *ReplaceableOutput
 }
 
 var _ hclog.Logger = (*Logger)(nil)
 
 // NewLogger returns a new logger with the given name.
 func NewLogger(name string) *Logger {
+	output := NewReplaceableOutput(os.Stderr)
 	return &Logger{
 		Logger: hclog.New(&hclog.LoggerOptions{
-			Name:  name,
-			Level: hclog.Trace,
+			Name:   name,
+			Level:  hclog.Warn,
+			Output: output,
 		}),
+		output: output,
 	}
+}
+
+func ReplaceOutput(ctx context.Context, writer io.Writer) {
+	AlwaysFromContext(ctx).output.ReplaceWriter(writer)
 }
 
 // Trace is a convenience method for logging at the Trace level to the logger
