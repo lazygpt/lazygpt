@@ -48,7 +48,7 @@ func ContextWithName(ctx context.Context, name string) context.Context {
 	if logger == nil {
 		logger = NewLogger(name)
 	} else {
-		logger.Logger = logger.Named(name)
+		logger.Logger = logger.Logger.Named(name)
 	}
 
 	return NewContext(ctx, logger)

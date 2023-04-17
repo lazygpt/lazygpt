@@ -4,6 +4,7 @@ package log
 
 import (
 	"context"
+	"io"
 
 	"github.com/hashicorp/go-hclog"
 )
@@ -18,10 +19,30 @@ var _ hclog.Logger = (*Logger)(nil)
 // NewLogger returns a new logger with the given name.
 func NewLogger(name string) *Logger {
 	return &Logger{
-		Logger: hclog.New(&hclog.LoggerOptions{
+		Logger: hclog.NewInterceptLogger(&hclog.LoggerOptions{
 			Name:  name,
 			Level: hclog.Trace,
 		}),
+	}
+}
+
+func ResetOutput(ctx context.Context, output io.Writer) {
+	logger := AlwaysFromContext(ctx)
+	if intercept, ok := logger.Logger.(hclog.OutputResettable); ok {
+		intercept.ResetOutput(&hclog.LoggerOptions{
+			Output: output,
+		})
+	} else {
+		logger.Warn("tried to reset the output on a non-output-resettable logger")
+	}
+}
+
+func RegisterSink(ctx context.Context, sink hclog.SinkAdapter) {
+	logger := AlwaysFromContext(ctx)
+	if intercept, ok := logger.Logger.(hclog.InterceptLogger); ok {
+		intercept.RegisterSink(sink)
+	} else {
+		logger.Warn("tried to register a sink on a non-intercept logger")
 	}
 }
 

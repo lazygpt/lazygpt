@@ -1,18 +1,14 @@
-//
-
 package app
 
 import (
 	"fmt"
-	"os"
-	"strings"
 
-	"github.com/c-bata/go-prompt"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
+	"github.com/lazygpt/lazygpt/cmd/lazygpt/app/chat"
 	"github.com/lazygpt/lazygpt/pkg/plugin"
 	"github.com/lazygpt/lazygpt/plugin/api"
-	"github.com/lazygpt/lazygpt/plugin/log"
 )
 
 func InitChatCmd(app *LazyGPTApp) {
@@ -47,46 +43,15 @@ func InitChatCmd(app *LazyGPTApp) {
 				return fmt.Errorf("failed to cast completion: %w", plugin.ErrUnexpectedInterface)
 			}
 
-			var messages []api.Message
+			promptCtx := chat.NewPromptContext(completion, nil)
+			promptExec := promptCtx.Executor(ctx)
 
-			executor := func(in string) {
-				input := strings.TrimSpace(in)
-
-				if input == "" {
-					return
-				}
-
-				if input == "exit" {
-					os.Exit(0)
-				}
-
-				messages = append(messages, api.Message{
-					Role:    "user",
-					Content: input,
-				})
-
-				response, reason, err := completion.Complete(ctx, messages)
-				if err != nil || response == nil {
-					log.Error(
-						ctx, "failed to complete", err,
-						"response", response,
-						"reason", reason,
-					)
-
-					return
-				}
-
-				messages = append(messages, api.Message{
-					Role:    response.Role,
-					Content: response.Content,
-				})
+			p := tea.NewProgram(
+				chat.NewModel(ctx, promptCtx, promptExec),
+				tea.WithContext(ctx))
+			if _, err := p.Run(); err != nil {
+				return fmt.Errorf("failed to run program: %w", err)
 			}
-
-			prompt.New(
-				executor,
-				func(_ prompt.Document) []prompt.Suggest { return []prompt.Suggest{} },
-				prompt.OptionPrefix("> "),
-			).Run()
 
 			return nil
 		},
