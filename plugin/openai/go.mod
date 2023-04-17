@@ -7,7 +7,7 @@ replace github.com/lazygpt/lazygpt => ../../
 require (
 	github.com/hashicorp/go-plugin v1.4.9
 	github.com/lazygpt/lazygpt v0.0.0-00010101000000-000000000000
-	github.com/sashabaranov/go-openai v1.7.0
+	github.com/sashabaranov/go-openai v1.8.0
 )
 
 require (
