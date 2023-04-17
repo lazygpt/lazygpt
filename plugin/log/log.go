@@ -5,7 +5,6 @@ package log
 import (
 	"context"
 	"io"
-	"os"
 
 	"github.com/hashicorp/go-hclog"
 )
@@ -13,27 +12,38 @@ import (
 // Logger is a wrapper around hclog.Logger to make it concrete.
 type Logger struct {
 	hclog.Logger
-
-	output *ReplaceableOutput
 }
 
 var _ hclog.Logger = (*Logger)(nil)
 
 // NewLogger returns a new logger with the given name.
 func NewLogger(name string) *Logger {
-	output := NewReplaceableOutput(os.Stderr)
 	return &Logger{
-		Logger: hclog.New(&hclog.LoggerOptions{
-			Name:   name,
-			Level:  hclog.Warn,
-			Output: output,
+		Logger: hclog.NewInterceptLogger(&hclog.LoggerOptions{
+			Name:  name,
+			Level: hclog.Trace,
 		}),
-		output: output,
 	}
 }
 
-func ReplaceOutput(ctx context.Context, writer io.Writer) {
-	AlwaysFromContext(ctx).output.ReplaceWriter(writer)
+func ResetOutput(ctx context.Context, output io.Writer) {
+	logger := AlwaysFromContext(ctx)
+	if intercept, ok := logger.Logger.(hclog.OutputResettable); ok {
+		intercept.ResetOutput(&hclog.LoggerOptions{
+			Output: output,
+		})
+	} else {
+		logger.Warn("tried to reset the output on a non-output-resettable logger")
+	}
+}
+
+func RegisterSink(ctx context.Context, sink hclog.SinkAdapter) {
+	logger := AlwaysFromContext(ctx)
+	if intercept, ok := logger.Logger.(hclog.InterceptLogger); ok {
+		intercept.RegisterSink(sink)
+	} else {
+		logger.Warn("tried to register a sink on a non-intercept logger")
+	}
 }
 
 // Trace is a convenience method for logging at the Trace level to the logger

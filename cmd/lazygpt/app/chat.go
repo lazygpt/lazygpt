@@ -43,8 +43,12 @@ func InitChatCmd(app *LazyGPTApp) {
 				return fmt.Errorf("failed to cast completion: %w", plugin.ErrUnexpectedInterface)
 			}
 
-			pctx := chat.NewPromptContext(ctx, completion, nil)
-			p := tea.NewProgram(chat.NewModel(pctx))
+			promptCtx := chat.NewPromptContext(completion, nil)
+			promptExec := promptCtx.Executor(ctx)
+
+			p := tea.NewProgram(
+				chat.NewModel(ctx, promptCtx, promptExec),
+				tea.WithContext(ctx))
 			if _, err := p.Run(); err != nil {
 				return fmt.Errorf("failed to run program: %w", err)
 			}

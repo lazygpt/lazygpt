@@ -2,7 +2,9 @@ package chat
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"math"
 	"strings"
 	"time"
@@ -12,7 +14,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
-
 	"github.com/lazygpt/lazygpt/plugin/log"
 )
 
@@ -21,7 +22,7 @@ const (
 	StrLogsPlaceholder   = "Logs will appear here."
 	StrPromptPlaceholder = "Type a prompt and press Enter to send."
 
-	ViewChatSizeFactor   = 0.40
+	ViewChatSizeFactor   = 0.55
 	ViewLogsSizeFactor   = 0.40
 	ViewPromptSizeFactor = 0.05
 )
@@ -67,10 +68,11 @@ type model struct {
 	logBuf *bytes.Buffer
 	err    error
 
-	pctx *promptContext
+	promptCtx      *promptContext
+	promptExecutor promptExecutor
 }
 
-func NewModel(pctx *promptContext) model {
+func NewModel(ctx context.Context, promptCtx *promptContext, promptExec promptExecutor) model {
 	const height = 40
 	const width = 80
 
@@ -93,7 +95,7 @@ func NewModel(pctx *promptContext) model {
 	chatVp.SetContent(StrChatPlaceholder)
 	chatVp.Style = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("5"))
+		BorderForeground(lipgloss.Color("86"))
 
 	logsVp := viewport.New(width, floorToInt(height*ViewLogsSizeFactor))
 	logsVp.SetContent(StrLogsPlaceholder)
@@ -102,8 +104,11 @@ func NewModel(pctx *promptContext) model {
 		BorderForeground(lipgloss.Color("202"))
 
 	// TODO(seanj): Need to make sure this buffer can't grow unbounded
+	// TODO(seanj): Create a BufferSinkAdapter that implements hclog.SinkAdapter
+	// the buffer sink adapter should take a pointer to a bytes buffer
 	logBuf := bytes.NewBufferString("")
-	log.ReplaceOutput(pctx.ctx, logBuf)
+	log.RegisterSink(ctx, log.NewBufferSinkAdapter(logBuf))
+	log.ResetOutput(ctx, io.Discard)
 
 	return model{
 		chatViewport: chatVp,
@@ -121,7 +126,8 @@ func NewModel(pctx *promptContext) model {
 		logBuf: logBuf,
 		err:    nil,
 
-		pctx: pctx,
+		promptCtx:      promptCtx,
+		promptExecutor: promptExec,
 	}
 }
 
@@ -156,10 +162,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				fallthrough
 			case "exit":
 				return m, tea.Quit
+			case "clear":
+				return m, tea.ClearScreen
 			}
 
-			message := m.pctx.AddUserMessage(promptText)
-			return m, tea.Batch(doPromptUpdated(), m.pctx.Executor(message))
+			m.promptCtx.AddUserMessage(promptText)
+			return m, tea.Batch(doPromptUpdated(), m.promptExecutor())
 		}
 
 	case tea.WindowSizeMsg:
@@ -175,11 +183,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tickMsg:
 		// Update logs viewport
-		if m.logBuf.Len() > 0 {
-			m.logsViewport = m.renderLogsViewport()
-			m.logBuf.Reset()
-		}
-
+		m.logsViewport = m.renderLogsViewport()
 		return m, tickEvery()
 
 	case promptUpdated:
@@ -197,11 +201,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	return fmt.Sprintf(
-		"%s\n%s\n\n%s",
+		"%s\n%s\n%s\n",
 		m.logsViewport.View(),
 		m.chatViewport.View(),
 		m.promptText.View(),
-	) + "\n"
+	)
 }
 
 func (m model) renderChatViewport() viewport.Model {
@@ -243,7 +247,7 @@ func (m model) renderLogsViewport() viewport.Model {
 func (m model) renderChatMessages() []string {
 	var messages []string = make([]string, 0)
 
-	for _, msg := range *m.pctx.messages {
+	for _, msg := range *m.promptCtx.messages {
 		var content string
 		var err error
 

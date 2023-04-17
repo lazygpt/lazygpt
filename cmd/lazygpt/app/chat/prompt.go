@@ -23,12 +23,13 @@ var (
 type contextUpdateFn func()
 
 type promptContext struct {
-	ctx        context.Context
 	completion api.Completion
 	messages   *[]api.Message
 }
 
 type promptUpdated struct{}
+
+type promptExecutor func() tea.Cmd
 
 func doPromptUpdated() tea.Cmd {
 	return func() tea.Msg {
@@ -36,14 +37,13 @@ func doPromptUpdated() tea.Cmd {
 	}
 }
 
-func NewPromptContext(ctx context.Context, completion api.Completion, messages *[]api.Message) *promptContext {
+func NewPromptContext(completion api.Completion, messages *[]api.Message) *promptContext {
 	if messages == nil {
 		messagesSlice := make([]api.Message, 0)
 		messages = &messagesSlice
 	}
 
 	return &promptContext{
-		ctx:        ctx,
 		completion: completion,
 		messages:   messages,
 	}
@@ -60,24 +60,26 @@ func (pc *promptContext) AddUserMessage(promptText string) api.Message {
 }
 
 // Executor returns a function that accepts a promptText and returns a function that will send the promptText to the completion plugin.
-func (pc *promptContext) Executor(userMessage api.Message) tea.Cmd {
-	return func() tea.Msg {
-		response, reason, err := pc.completion.Complete(pc.ctx, *pc.messages)
-		if err != nil || response == nil {
-			log.Error(
-				pc.ctx, "failed to complete", err,
-				"response", response,
-				"reason", reason,
-			)
+func (pc *promptContext) Executor(ctx context.Context) promptExecutor {
+	return func() tea.Cmd {
+		return func() tea.Msg {
+			response, reason, err := pc.completion.Complete(ctx, *pc.messages)
+			if err != nil || response == nil {
+				log.Error(
+					ctx, "failed to complete", err,
+					"response", response,
+					"reason", reason,
+				)
 
-			return ""
+				return ""
+			}
+
+			*pc.messages = append(*pc.messages, api.Message{
+				Role:    response.Role,
+				Content: response.Content,
+			})
+
+			return promptUpdated{}
 		}
-
-		*pc.messages = append(*pc.messages, api.Message{
-			Role:    response.Role,
-			Content: response.Content,
-		})
-
-		return promptUpdated{}
 	}
 }
