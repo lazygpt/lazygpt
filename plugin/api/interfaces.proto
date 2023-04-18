@@ -29,17 +29,18 @@ message InterfacesResponse {
   repeated string interfaces = 1;
 }
 
-message Message {
+message CompletionMessage {
   string role = 1;
   string content = 2;
+  string name = 3;
 }
 
 message CompletionRequest {
-  repeated Message messages = 1;
+  repeated CompletionMessage messages = 1;
 }
 
 message CompletionResponse {
-  Message message = 1;
+  CompletionMessage message = 1;
   Reason reason = 2;
 }
 

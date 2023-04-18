@@ -9,12 +9,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-// NewMessage returns a new Message.
-func NewMessage(role string, content string) Message {
-	return Message{
-		Role:    role,
-		Content: content,
-	}
+type Message struct {
+	Content string `json:"content"`
+	Name    string `json:"name"`
+	Role    string `json:"role"`
 }
 
 // Completion is the interface that plugins must implement to provide
@@ -72,8 +70,17 @@ func (s *CompletionGRPCServer) Complete(
 		return nil, fmt.Errorf("completion failed: %w", err)
 	}
 
+	message := &CompletionMessage{
+		Role:    msg.Role,
+		Content: msg.Content,
+	}
+
+	if msg.Name != "" {
+		message.Name = msg.Name
+	}
+
 	return &CompletionResponse{
-		Message: msg,
+		Message: message,
 		Reason:  reason,
 	}, nil
 }
@@ -98,11 +105,20 @@ func (c *CompletionGRPCClient) Complete(
 	messages []Message,
 ) (*Message, Reason, error) {
 	req := &CompletionRequest{
-		Messages: make([]*Message, len(messages)),
+		Messages: make([]*CompletionMessage, len(messages)),
 	}
 
-	for i := range messages {
-		req.Messages[i] = &messages[i]
+	for idx := range messages {
+		message := &CompletionMessage{
+			Role:    messages[idx].Role,
+			Content: messages[idx].Content,
+		}
+
+		if messages[idx].Name != "" {
+			message.Name = messages[idx].Name
+		}
+
+		req.Messages[idx] = message
 	}
 
 	resp, err := c.Client.Complete(ctx, req)
@@ -110,5 +126,14 @@ func (c *CompletionGRPCClient) Complete(
 		return nil, Reason_UNKNOWN, fmt.Errorf("completion failed: %w", err)
 	}
 
-	return resp.Message, resp.Reason, nil
+	msg := &Message{
+		Role:    resp.Message.Role,
+		Content: resp.Message.Content,
+	}
+
+	if resp.Message.Name != "" {
+		msg.Name = resp.Message.Name
+	}
+
+	return msg, resp.Reason, nil
 }
