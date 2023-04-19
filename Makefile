@@ -77,9 +77,19 @@ $(DIST_DIR)/lazygpt: $(shell find $(REPO_ROOT_DIR)/plugin/api -type f -name '*'.
 	@echo
 
 $(DIST_DIR)/lazygpt-plugin-openai: $(DIST_DIR)
-$(DIST_DIR)/lazygpt-plugin-openai: $(shell find $(REPO_ROOT_DIR)/plugin -type f -name '*'.go)
+$(DIST_DIR)/lazygpt-plugin-local: $(shell find $(REPO_ROOT_DIR)/plugin/api -type f -name '*'.go)
+$(DIST_DIR)/lazygpt-plugin-local: $(shell find $(REPO_ROOT_DIR)/plugin/log -type f -name '*'.go)
+$(DIST_DIR)/lazygpt-plugin-openai: $(shell find $(REPO_ROOT_DIR)/plugin/openai -type f -name '*'.go)
 	@echo "go building $(basename $@)"
 	cd plugin/openai && go build -ldflags="$(GO_LDFLAGS)" -o $@ cmd/main.go
+	@echo
+
+$(DIST_DIR)/lazygpt-plugin-local: $(DIST_DIR)
+$(DIST_DIR)/lazygpt-plugin-local: $(shell find $(REPO_ROOT_DIR)/plugin/api -type f -name '*'.go)
+$(DIST_DIR)/lazygpt-plugin-local: $(shell find $(REPO_ROOT_DIR)/plugin/local -type f -name '*'.go)
+$(DIST_DIR)/lazygpt-plugin-local: $(shell find $(REPO_ROOT_DIR)/plugin/log -type f -name '*'.go)
+	@echo "go building $(basename $@)"
+	cd plugin/local && go build -ldflags="$(GO_LDFLAGS)" -o $@ cmd/main.go
 	@echo
 
 $(DOCKER_DEVKIT_PHONY_FILE): Dockerfile.devkit
@@ -138,6 +148,7 @@ build.host: #> Build the project on the host
 build.host: generate.host
 build.host: $(DIST_DIR)/lazygpt
 build.host: $(DIST_DIR)/lazygpt-plugin-openai
+build.host: $(DIST_DIR)/lazygpt-plugin-local
 
 .PHONY: build
 build: #> Build the project on the host, then run it in a devkit environment

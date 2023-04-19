@@ -18,23 +18,29 @@ service Embedding {
   rpc Embedding (EmbeddingRequest) returns (EmbeddingResponse) {}
 }
 
+service Memory {
+  rpc Memorize (MemorizeRequest) returns (MemorizeResponse) {}
+  rpc Recall (RecallRequest) returns (RecallResponse) {}
+}
+
 message InterfacesRequest {}
 
 message InterfacesResponse {
   repeated string interfaces = 1;
 }
 
-message Message {
+message CompletionMessage {
   string role = 1;
   string content = 2;
+  string name = 3;
 }
 
 message CompletionRequest {
-  repeated Message messages = 1;
+  repeated CompletionMessage messages = 1;
 }
 
 message CompletionResponse {
-  Message message = 1;
+  CompletionMessage message = 1;
   Reason reason = 2;
 }
 
@@ -51,4 +57,19 @@ message EmbeddingRequest {
 
 message EmbeddingResponse {
   repeated float embedding = 1;
+}
+
+message MemorizeRequest {
+  repeated string data = 1;
+}
+
+message MemorizeResponse {}
+
+message RecallRequest {
+  string data = 1;
+  int32 count = 2;
+}
+
+message RecallResponse {
+  repeated string data = 1;
 }

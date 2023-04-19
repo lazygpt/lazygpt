@@ -25,6 +25,13 @@ func NewLogger(name string) *Logger {
 	}
 }
 
+// WithName returns a new logger with the given name.
+func (logger *Logger) WithName(name string) *Logger {
+	return &Logger{
+		Logger: logger.Logger.Named(name),
+	}
+}
+
 // Trace is a convenience method for logging at the Trace level to the logger
 // in the context.
 func Trace(ctx context.Context, msg string, keyvals ...any) {

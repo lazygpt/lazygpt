@@ -33,6 +33,7 @@ func Plugins() map[string]plugin.Plugin {
 		"completion": NewCompletionPlugin(nil),
 		"embedding":  NewEmbeddingPlugin(nil),
 		"interfaces": NewInterfacesPlugin(nil),
+		"memory":     NewMemoryPlugin(nil),
 	}
 }
 
