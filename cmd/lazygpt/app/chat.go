@@ -21,7 +21,16 @@ import (
 const (
 	MaxMemory   = 10
 	MemoryCount = 10
-	MaxTokens   = 3000
+
+	MaxTokens      = 4096
+	ResponseTokens = 1024
+	SendTokens     = MaxTokens - ResponseTokens
+
+	// NOTE(jkoelker) Allow 80% of the tokens to be used for the memory.
+	//                Perform this calculation in integer space to avoid
+	//                floating point errors.
+	MemoryTokens  = SendTokens * 80 / 100
+	HistoryTokens = SendTokens - MemoryTokens
 )
 
 func InitChatCmd(app *LazyGPTApp) {
@@ -54,8 +63,30 @@ func InitChatCmd(app *LazyGPTApp) {
 				}
 			}()
 
+			execute := Executor(ctx, completion, memory)
+
+			if err := execute(Prompt(), "system"); err != nil {
+				return fmt.Errorf("failed to set initial prompt: %w", err)
+			}
+
 			prompt.New(
-				Executor(ctx, completion, memory),
+				func(in string) {
+					input := strings.TrimSpace(in)
+
+					if input == "" {
+						return
+					}
+
+					if input == "exit" {
+						os.Exit(0)
+					}
+
+					if err := execute(input, "user"); err != nil {
+						log.Error(ctx, "failed to execute", err)
+
+						return
+					}
+				},
 				func(_ prompt.Document) []prompt.Suggest { return []prompt.Suggest{} },
 				prompt.OptionPrefix("> "),
 			).Run()
@@ -67,46 +98,43 @@ func InitChatCmd(app *LazyGPTApp) {
 	app.RootCmd.AddCommand(chatCmd)
 }
 
-func Executor(ctx context.Context, completion api.Completion, memory api.Memory) func(string) {
-	var responses []api.Message
+func Executor(
+	ctx context.Context,
+	completion api.Completion,
+	memory api.Memory,
+) func(string, string) error {
+	var history []api.Message
 
-	return func(in string) {
-		input := strings.TrimSpace(in)
-
-		if input == "" {
-			return
-		}
-
-		if input == "exit" {
-			os.Exit(0)
-		}
-
+	return func(input string, role string) error {
 		memories := make([]string, 0, MaxMemory)
 
-		for i := len(responses) - 1; i >= 0 && len(memories) < MaxMemory; i-- {
-			memories = append(memories, Memorize(&responses[i], "", ""))
+		for i := len(history) - 1; i >= 0 && len(memories) < MaxMemory; i-- {
+			memories = append(memories, Memorize(&history[i], "", ""))
 		}
 
 		recollection, err := Recollection(ctx, memory, memories)
 		if err != nil {
-			log.Error(ctx, "failed to recollect", err)
-
-			return
+			return fmt.Errorf("failed to recollect: %w", err)
 		}
 
-		context, err := AIContext(recollection, responses, "gpt-3.5-turbo", MaxTokens)
-		if err != nil {
-			log.Error(ctx, "failed to create context", err)
-
-			return
-		}
-
-		context = append(context, api.Message{
-			Role:    "user",
+		history = append(history, api.Message{
+			Role:    role,
 			Content: input,
 		})
 
-		log.Debug(ctx, "context", context)
+		context, tokens, err := AIContext(
+			ctx,
+			recollection,
+			history,
+			"gpt-3.5-turbo",
+			MemoryTokens,
+			HistoryTokens,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create context: %w", err)
+		}
+
+		log.Info(ctx, "Thinking...", "context", context, "tokens", tokens)
 
 		response, reason, err := completion.Complete(ctx, context)
 		if err != nil || response == nil {
@@ -116,12 +144,12 @@ func Executor(ctx context.Context, completion api.Completion, memory api.Memory)
 				"reason", reason,
 			)
 
-			return
+			return fmt.Errorf("failed to complete: %w", err)
 		}
 
 		fmt.Println(response.Content) //nolint:forbidigo // this is a CLI app
 
-		responses = append(responses, api.Message{
+		history = append(history, api.Message{
 			Role:    response.Role,
 			Content: response.Content,
 		})
@@ -130,11 +158,40 @@ func Executor(ctx context.Context, completion api.Completion, memory api.Memory)
 			ctx,
 			[]string{Memorize(response, "", input)},
 		); err != nil {
-			log.Error(ctx, "failed to memorize", err)
-
-			return
+			return fmt.Errorf("failed to memorize: %w", err)
 		}
+
+		return nil
 	}
+}
+
+func Prompt() string {
+	constraints := `
+1. ~4000 word limit for short term memory. Your short term memory is short, so
+immediately save important information to files.
+2. If you are unsure how you previously did something or want to recall past
+events, thinking about similar events will help you remember
+`
+	commands := ""
+	resources := ""
+	performance := `
+1. Continuously review and analyze your actions to ensure you are performing to
+the best of your abilities.
+2. Constructively self-criticize your big-picture behavior constantly.
+3. Reflect on past decisions and strategies to refine your approach.
+4. Every command has a cost, so be smart and efficient. Aim to complete tasks in
+the least number of steps.
+`
+
+	return strings.Join(
+		[]string{
+			"Constraints:", constraints,
+			"Commands:", commands,
+			"Resources:", resources,
+			"Performance Evaluation:", performance,
+		},
+		"\n",
+	)
 }
 
 func Recollection(ctx context.Context, memory api.Memory, memories []string) ([]string, error) {
@@ -162,14 +219,16 @@ func Memorize(msg *api.Message, result string, feedback string) string {
 }
 
 func AIContext(
+	_ context.Context,
 	memories []string,
 	history []api.Message,
 	model string,
-	maxTokens int,
-) ([]api.Message, error) {
+	memoriesTokens int,
+	historyTokens int,
+) ([]api.Message, int, error) {
 	counter, err := tokens.NewCounter(model)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create counter: %w", err)
+		return nil, 0, fmt.Errorf("failed to create counter: %w", err)
 	}
 
 	now := time.Now()
@@ -178,31 +237,48 @@ func AIContext(
 			Role:    "system",
 			Content: fmt.Sprintf("The current time and date is %s", now.Format(time.RFC3339)),
 		},
-		{
-			Role: "system",
-			Content: fmt.Sprintf(
-				"This reminds you of these events from your past: %s",
-				strings.Join(memories, "\n\n"),
-			),
-		},
 	}
 
 	for _, message := range messages {
 		counter.Add(message)
 	}
 
-	// walk history backwards adding messages until we reach maxTokens
-	for idx := len(history) - 1; idx >= 0; idx-- {
-		counter.Add(history[idx])
+	for _, memory := range memories {
+		message := api.Message{
+			Role:    "system",
+			Content: fmt.Sprintf("This reminds you of this event from your past: %s", memory),
+		}
 
-		if counter.Tokens >= maxTokens {
+		counter.Add(message)
+
+		if counter.Tokens >= memoriesTokens {
 			break
 		}
 
+		messages = append(messages, message)
+	}
+
+	maxHistoryIdx := len(history) - 1
+
+	// NOTE(jkoelker) Walk history backwards adding messages until we reach the
+	//                max number of history tokens.
+	for idx := len(history) - 1; idx >= 0; idx-- {
+		counter.Add(history[idx])
+
+		if counter.Tokens >= historyTokens {
+			maxHistoryIdx = idx - 1
+
+			break
+		}
+	}
+
+	// NOTE(jkoelker) Add history messages in reverse order so they are in the
+	//                correct order.
+	for idx := len(history) - 1; idx >= maxHistoryIdx; idx-- {
 		messages = append(messages, history[idx])
 	}
 
-	return messages, nil
+	return messages, counter.Tokens, nil
 }
 
 func Completion( //nolint:ireturn
