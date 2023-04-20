@@ -24,6 +24,7 @@ func NewLogger(name string, level ...string) *Logger {
 
 	return &Logger{
 		Logger: hclog.New(&hclog.LoggerOptions{
+			Color: hclog.AutoColor,
 			Name:  name,
 			Level: lvl,
 		}),
