@@ -15,12 +15,17 @@ type Logger struct {
 
 var _ hclog.Logger = (*Logger)(nil)
 
-// NewLogger returns a new logger with the given name.
-func NewLogger(name string) *Logger {
+// NewLogger returns a new logger with the given name and optional level.
+func NewLogger(name string, level ...string) *Logger {
+	lvl := hclog.Trace
+	if len(level) > 0 {
+		lvl = hclog.LevelFromString(level[0])
+	}
+
 	return &Logger{
 		Logger: hclog.New(&hclog.LoggerOptions{
 			Name:  name,
-			Level: hclog.Trace,
+			Level: lvl,
 		}),
 	}
 }

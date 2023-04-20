@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -31,6 +32,17 @@ uses GPT or other language models to develop a plan and implement it. Everything
 from the language model to the various commands exposed to the model is
 implemented with plugins. The program can either run on the CLI or start a web
 server and serve a web UI.`,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			logLevel, err := cmd.Flags().GetString("log-level")
+			if err != nil {
+				return fmt.Errorf("can't get log-level: %w", err)
+			}
+
+			ctx := log.NewContext(cmd.Context(), log.NewLogger("lazygpt", logLevel))
+			cmd.SetContext(ctx)
+
+			return nil
+		},
 	}
 
 	app.RootCmd.PersistentFlags().StringVar(
@@ -40,6 +52,13 @@ server and serve a web UI.`,
 		"config file (default is lazygpt.yaml in user's config directory)",
 	)
 
+	app.RootCmd.PersistentFlags().StringP(
+		"log-level",
+		"l",
+		"info",
+		"log level (trace, debug, info, warn, error)",
+	)
+
 	InitChatCmd(app)
 	InitServeCmd(app)
 
@@ -47,9 +66,7 @@ server and serve a web UI.`,
 }
 
 func (app *LazyGPTApp) Execute() {
-	app.InitConfig()
-
-	ctx := log.NewContext(context.Background(), log.NewLogger("lazygpt"))
+	ctx := app.InitConfig()
 
 	args := os.Args[1:]
 	cmd, _, err := app.RootCmd.Find(args)
@@ -65,7 +82,7 @@ func (app *LazyGPTApp) Execute() {
 	}
 }
 
-func (app *LazyGPTApp) InitConfig() {
+func (app *LazyGPTApp) InitConfig() context.Context {
 	ctx := log.NewContext(context.Background(), log.NewLogger("bootstrap"))
 
 	if app.ConfigFile != "" {
@@ -90,4 +107,6 @@ func (app *LazyGPTApp) InitConfig() {
 			os.Exit(1)
 		}
 	}
+
+	return ctx
 }
