@@ -52,7 +52,7 @@ func TestCounterGPT35Turbo0301(t *testing.T) {
 
 	messages := exampleMessages()
 	for _, message := range messages {
-		counter.Add(message)
+		assert.NilError(t, counter.Add(message))
 	}
 
 	assert.Equal(t, counter.Tokens, 127)
@@ -66,7 +66,7 @@ func TestCounterGPT40314(t *testing.T) {
 
 	messages := exampleMessages()
 	for _, message := range messages {
-		counter.Add(message)
+		assert.NilError(t, counter.Add(message))
 	}
 
 	assert.Equal(t, counter.Tokens, 129)
