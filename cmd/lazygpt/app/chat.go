@@ -239,8 +239,8 @@ func AIContext(
 		},
 	}
 
-	for _, message := range messages {
-		counter.Add(message)
+	if err := counter.Add(messages...); err != nil {
+		return nil, 0, fmt.Errorf("failed to add message to counter: %w", err)
 	}
 
 	for _, memory := range memories {
@@ -249,7 +249,9 @@ func AIContext(
 			Content: fmt.Sprintf("This reminds you of this event from your past: %s", memory),
 		}
 
-		counter.Add(message)
+		if err := counter.Add(message); err != nil {
+			return nil, 0, fmt.Errorf("failed to add message to counter: %w", err)
+		}
 
 		if counter.Tokens >= memoriesTokens {
 			break
@@ -263,7 +265,9 @@ func AIContext(
 	// NOTE(jkoelker) Walk history backwards adding messages until we reach the
 	//                max number of history tokens.
 	for idx := len(history) - 1; idx >= 0; idx-- {
-		counter.Add(history[idx])
+		if err := counter.Add(history[idx]); err != nil {
+			return nil, 0, fmt.Errorf("failed to add message to counter: %w", err)
+		}
 
 		if counter.Tokens >= historyTokens {
 			maxHistoryIdx = idx - 1

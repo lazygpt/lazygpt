@@ -5,7 +5,7 @@ package tokens
 import (
 	"fmt"
 
-	"github.com/pkoukk/tiktoken-go"
+	"github.com/tiktoken-go/tokenizer"
 
 	"github.com/lazygpt/lazygpt/plugin/api"
 )
@@ -22,7 +22,7 @@ type Counter struct {
 	Tokens int
 
 	// encoding used for the model.
-	encoding *tiktoken.Tiktoken
+	encoding tokenizer.Codec
 
 	// perMessage number of tokens per message.
 	perMessage int
@@ -48,7 +48,7 @@ func NewCounter(model string) (*Counter, error) {
 		perName = 1
 	}
 
-	tkm, err := tiktoken.GetEncoding("cl100k_base")
+	enc, err := tokenizer.Get(tokenizer.Cl100kBase)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get encoding: %w", err)
 	}
@@ -57,7 +57,7 @@ func NewCounter(model string) (*Counter, error) {
 		Model:  model,
 		Tokens: PrimedTokens,
 
-		encoding:   tkm,
+		encoding:   enc,
 		perMessage: perMessage,
 		perName:    perName,
 	}, nil
@@ -65,13 +65,35 @@ func NewCounter(model string) (*Counter, error) {
 
 // Add adds a message to the counter taking into account the model to
 // add necessary tokens.
-func (c *Counter) Add(msg api.Message) {
-	c.Tokens += c.perMessage
-	c.Tokens += len(c.encoding.Encode(msg.Content, nil, nil))
-	c.Tokens += len(c.encoding.Encode(msg.Name, nil, nil))
-	c.Tokens += len(c.encoding.Encode(msg.Role, nil, nil))
+func (c *Counter) Add(messages ...api.Message) error {
+	for _, msg := range messages {
+		c.Tokens += c.perMessage
 
-	if msg.Name != "" {
-		c.Tokens += c.perName
+		_, tokens, err := c.encoding.Encode(msg.Content)
+		if err != nil {
+			return fmt.Errorf("failed to encode message: %w", err)
+		}
+
+		c.Tokens += len(tokens)
+
+		_, tokens, err = c.encoding.Encode(msg.Name)
+		if err != nil {
+			return fmt.Errorf("failed to encode name: %w", err)
+		}
+
+		c.Tokens += len(tokens)
+
+		_, tokens, err = c.encoding.Encode(msg.Role)
+		if err != nil {
+			return fmt.Errorf("failed to encode role: %w", err)
+		}
+
+		c.Tokens += len(tokens)
+
+		if msg.Name != "" {
+			c.Tokens += c.perName
+		}
 	}
+
+	return nil
 }
