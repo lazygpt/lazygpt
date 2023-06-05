@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/daixiang0/gci v0.10.1
-	golang.org/x/tools v0.9.1
+	golang.org/x/tools v0.9.3
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
 	google.golang.org/protobuf v1.30.0
 	gotest.tools/gotestsum v1.10.0
