@@ -5,7 +5,7 @@ go 1.20
 replace github.com/lazygpt/lazygpt => ../../
 
 require (
-	github.com/hashicorp/go-plugin v1.4.9
+	github.com/hashicorp/go-plugin v1.4.10
 	github.com/lazygpt/lazygpt v0.0.0-00010101000000-000000000000
 	github.com/sashabaranov/go-openai v1.9.4
 )
