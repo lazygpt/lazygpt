@@ -5,7 +5,7 @@ go 1.20
 replace github.com/lazygpt/lazygpt => ../../
 
 require (
-	github.com/dgraph-io/badger/v4 v4.1.0
+	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/hashicorp/go-plugin v1.4.9
 	github.com/lazygpt/lazygpt v0.0.0-00010101000000-000000000000
 	gotest.tools/v3 v3.4.0
