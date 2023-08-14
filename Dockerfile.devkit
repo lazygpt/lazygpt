@@ -5,7 +5,7 @@
 FROM docker.io/golangci/golangci-lint:v1.52.2-alpine as golangci-lint
 FROM docker.io/hadolint/hadolint:v2.12.0-alpine as hadolint
 
-FROM docker.io/golang:1.20.4-alpine as builder
+FROM docker.io/golang:1.21.0-alpine as builder
 
 # NOTE(jkoelker) install the tools in the builder here to improve layer
 #                caching of the published devkit.
@@ -19,7 +19,7 @@ RUN mkdir -p /tools \
     && go install -v $(go list -f '{{ join .Imports " " }}' -tags=tools)
 
 # NOTE(jkoelker) From here we care about layers
-FROM docker.io/golang:1.20.4-alpine
+FROM docker.io/golang:1.21.0-alpine
 
 # NOTE(jkoelker) Ignore "Pin versions in apk add"
 # hadolint ignore=DL3018
