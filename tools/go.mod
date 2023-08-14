@@ -3,7 +3,7 @@ module github.com/lazygpt/lazygtp/tools
 go 1.20
 
 require (
-	github.com/daixiang0/gci v0.10.1
+	github.com/daixiang0/gci v0.11.0
 	golang.org/x/tools v0.9.1
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
 	google.golang.org/protobuf v1.30.0
